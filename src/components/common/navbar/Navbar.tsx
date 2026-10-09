@@ -29,7 +29,7 @@ return ( <nav className="fixed top-0 left-0 z-50 w-full border-b border-gray-100
        href="/"
      >     <Image
             src={logo}
-            alt="FixItNow Logo"
+            alt="ProjectFlow logo"
             width={500}
             height={500}
             priority

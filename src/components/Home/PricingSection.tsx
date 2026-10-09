@@ -52,7 +52,7 @@ export default function PricingSection() {
             PRICING
           </span>
 
-          <h2 className="mx-auto text-2xl leading-tight font-bold tracking-tight text-[#071943] sm:text-3xl lg:text-[34px]">
+          <h2 className="mx-auto text-xl leading-tight font-bold tracking-tight text-[#071943] md:text-2xl lg:text-[34px]">
             Choose the perfect plan for your team
           </h2>
         </div>

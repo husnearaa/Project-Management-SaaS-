@@ -1,9 +1,6 @@
 
 import Link from "next/link";
-import {
-  Rocket,
-  ArrowRight,
-} from "lucide-react";
+import { Rocket, ArrowRight } from "lucide-react";
 
 export default function CallToActionSection() {
   return (
@@ -11,22 +8,23 @@ export default function CallToActionSection() {
       <div className="mx-auto w-full max-w-[1440px]">
         <div className="relative overflow-hidden rounded-xl border border-blue-300/30 bg-gradient-to-r from-[#0649ed] via-[#1049e8] to-[#063bd8] px-5 py-7 text-white shadow-[0_8px_24px_rgba(21,88,237,0.15)] sm:px-8 sm:py-8 lg:px-10 lg:py-7">
           {/* Background Decoration */}
-          <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-white/5 blur-2xl" />
+          <div className="pointer-events-none absolute -top-24 -right-16 h-64 w-64 rounded-full bg-white/5 blur-2xl" />
           <div className="pointer-events-none absolute -bottom-24 left-1/3 h-48 w-48 rounded-full bg-blue-300/10 blur-2xl" />
 
-          <div className="relative flex flex-col items-center gap-6 text-center md:flex-row md:gap-6 md:text-left lg:gap-7">
+          {/* Content */}
+          <div className="relative flex flex-col items-center gap-6 text-center md:grid md:grid-cols-[auto_1fr] md:items-center md:gap-x-5 md:gap-y-6 md:text-left lg:flex lg:flex-row lg:gap-7">
             {/* Rocket Icon */}
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-blue-700/50 ring-1 ring-white/5 sm:h-24 sm:w-24">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-blue-700/50 ring-1 ring-white/5 sm:h-24 sm:w-24 md:row-span-1 lg:h-24 lg:w-24">
               <Rocket
                 size={48}
                 strokeWidth={1.8}
-                className="rotate-[-12deg] text-white sm:h-12 sm:w-12"
+                className="rotate-[-12deg] text-white"
                 aria-hidden="true"
               />
             </div>
 
             {/* Text Content */}
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 md:self-center lg:flex-1">
               <h2 className="text-xl leading-tight font-bold tracking-tight sm:text-2xl">
                 Ready to transform the way you work?
               </h2>
@@ -38,7 +36,7 @@ export default function CallToActionSection() {
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex w-full shrink-0 flex-col gap-3 min-[420px]:w-auto min-[420px]:flex-row md:ml-auto">
+            <div className="flex w-full flex-col gap-3 min-[420px]:w-auto min-[420px]:flex-row md:col-span-2 md:w-full md:justify-center lg:ml-auto lg:w-auto lg:shrink-0">
               <Link
                 href="/register"
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-white px-5 py-3 text-sm font-semibold text-[#0649ed] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-blue-50 sm:px-6"
