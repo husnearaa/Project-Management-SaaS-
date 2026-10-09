@@ -1,3 +1,4 @@
+import CallToActionSection from "@/components/Home/CallToActionSection";
 import DashboardOverviewSection from "@/components/Home/DashboardOverviewSection";
 import FeaturesSection from "@/components/Home/FeaturesSection";
 import HeroSection from "@/components/Home/HeroSection";
@@ -16,6 +17,7 @@ const HomePage = () => {
       <HowItWorksSection />
       <DashboardOverviewSection />
       <PricingSection />
+      <CallToActionSection />
     </div>
   );
 };
