@@ -40,7 +40,7 @@ const plans = [
 
 export default function PricingPage() {
   return (
-    <main className="min-h-screen bg-white text-slate-900">
+    <main className="min-h-screen bg-white text-slate-900 mt-10">
       {/* Hero */}
       <section className="px-5 pb-12 pt-20 sm:px-8 sm:pt-24 lg:px-12">
         <div className="mx-auto max-w-[1440px] text-center">
