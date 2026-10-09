@@ -160,9 +160,9 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { RootState } from "../store";
 import { logout } from "../features/authSlice";
 
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+const baseUrl = process.env.NEXT_PUBLIC_API_URL;
 if (!baseUrl) {
-  throw new Error("Environment variable NEXT_PUBLIC_BASE_URL is not set");
+  throw new Error("Environment variable NEXT_PUBLIC_API_URL is not set");
 }
 
 const rawBaseQuery = fetchBaseQuery({

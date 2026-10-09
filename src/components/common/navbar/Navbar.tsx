@@ -12,7 +12,7 @@ const navLinks = [
 { href: "/", label: "Home" },
 { href: "/about", label: "About" },
 { href: "/features", label: "Features" },
-{ href: "/pricing", label: "Pricing" },
+{ href: "/pricing", label: "Pricing" }, 
 { href: "/contact", label: "Contact" },
 ];
 
@@ -27,26 +27,25 @@ const closeSidebar = () => setIsSidebarOpen(false);
 return ( <nav className="fixed top-0 left-0 z-50 w-full border-b border-gray-100 bg-white"> <div className="mx-auto flex h-[76px] max-w-[1440px] items-center justify-between px-5 sm:px-8 lg:px-12">
 {/* Logo */} <Link
        href="/"
-       onClick={closeSidebar}
-       className="flex shrink-0 items-center gap-2.5"
-     > <Image
-         src={logo}
-         alt="ProjectFlow logo"
-         width={40}
-         height={40}
-         priority
-         className="h-9 w-9 object-contain"
-       />
+     >     <Image
+            src={logo}
+            alt="FixItNow Logo"
+            width={500}
+            height={500}
+            priority
+            className="h-20 w-55"
+          />
+       
 
 
-      <div className="flex flex-col">
+      {/* <div className="flex flex-col">
         <span className="text-[17px] leading-5 font-bold tracking-tight text-[#172033]">
           ProjectFlow
         </span>
         <span className="mt-0.5 text-[10px] leading-3 text-gray-500">
           Project Management SaaS
         </span>
-      </div>
+      </div> */}
     </Link>
 
     {/* Desktop Navigation */}
@@ -56,7 +55,7 @@ return ( <nav className="fixed top-0 left-0 z-50 w-full border-b border-gray-100
           key={link.href}
           href={link.href}
           aria-current={isActive(link.href) ? "page" : undefined}
-          className={`text-[13px] font-semibold transition-colors duration-200 ${
+          className={`text-[14px] font-semibold transition-colors duration-200 ${
             isActive(link.href)
               ? "text-[#075BE8]"
               : "text-[#172033] hover:text-[#075BE8]"
@@ -71,7 +70,7 @@ return ( <nav className="fixed top-0 left-0 z-50 w-full border-b border-gray-100
     <div className="hidden shrink-0 items-center gap-7 lg:flex">
       <Link
         href="/login"
-        className="text-[13px] font-semibold text-[#172033] transition-colors hover:text-[#075BE8]"
+        className="text-[14px] font-semibold text-[#172033] transition-colors hover:text-[#075BE8]"
       >
         Login
       </Link>
