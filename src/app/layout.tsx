@@ -11,7 +11,7 @@ const lexendDeca = Lexend_Deca({
   weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
 });
 export const metadata: Metadata = {
-  title: "Project Management SaaS ",
+  title: "Project Management SaaS",
    icons: {
     icon: "/logo.png",
   },

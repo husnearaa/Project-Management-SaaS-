@@ -33,7 +33,7 @@ return ( <nav className="fixed top-0 left-0 z-50 w-full border-b border-gray-100
             width={500}
             height={500}
             priority
-            className="h-20 w-55"
+            className="h-20 w-60"
           />
        
 
