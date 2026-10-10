@@ -147,7 +147,8 @@ const RegisterPage = () => {
 
       // Change this destination if your backend returns tokens and
       // your login flow stores them in Redux or your chosen auth storage.
-      router.push("/dashboard");
+      // router.push("/dashboard");
+      router.push("/");
       router.refresh();
     } catch (error) {
       console.error("Google registration error:", error);
