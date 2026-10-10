@@ -163,9 +163,6 @@ export default function AdminOverviewPage() {
         {/* Page Heading */}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="mb-2 text-sm font-semibold tracking-wide text-[#075BE8]">
-              ADMINISTRATION
-            </p>
             <h1 className="text-2xl font-bold tracking-tight text-[#172033] sm:text-3xl">
               Admin Overview
             </h1>
