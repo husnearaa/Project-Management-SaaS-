@@ -41,8 +41,8 @@ const data = {
         icon: TbUsersGroup,
       },
       {
-        title: "Category Management",
-        url: "/admin/categories",
+        title: "Audit Logs",
+        url: "/admin/audit-logs",
         icon: ChartBarStacked,
       },
     ],

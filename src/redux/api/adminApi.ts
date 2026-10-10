@@ -22,6 +22,15 @@ export const AdminApi = baseApi.injectEndpoints({
       providesTags: ["Admin"],
     }),
 
+    getAllAuditLogs: builder.query({
+      query: (params) => ({
+        url: "/audit/audit-logs",
+        method: "GET",
+        params: { ...params },
+      }),
+      providesTags: ["Admin"],
+    }),
+
     updateUserRole: builder.mutation({
       query: ({ id, role }) => ({
         url: `/admin/users/${id}/role`,
@@ -51,6 +60,7 @@ export const AdminApi = baseApi.injectEndpoints({
 export const {
   useGetAllDashboardStatsQuery,
   useGetAllUsersQuery,
+  useGetAllAuditLogsQuery,
   useUpdateUserRoleMutation,
   useUpdateUserStatusMutation
 } = AdminApi;
