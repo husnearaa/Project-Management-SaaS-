@@ -66,8 +66,8 @@ const data = {
         icon: CalendarDays,
       },
       {
-        title: "Booking Management",
-        url: "/manager/booking",
+        title: "Team Management",
+        url: "/manager/team",
         icon: CalendarCheck,
       },
     ],
