@@ -115,7 +115,7 @@ export function NavMain({
                 tooltip={item.title}
                 className={`border rounded-xl transition-all duration-200 ${
                   isActive
-                    ? "bg-[#EC620B] text-white border-[#EC620B] shadow-sm hover:bg-[#EC620B]/90 hover:text-white"
+                    ? "bg-[#064ac0] text-white border-[#064ac0] shadow-sm hover:bg-[#064ac0]/90 hover:text-white"
                     : "text-[#00224A] bg-white border-gray-200 hover:border-[#00224A]/20 hover:bg-[#00224A]/5 hover:text-[#00224A]"
                 } py-6`}
               >
