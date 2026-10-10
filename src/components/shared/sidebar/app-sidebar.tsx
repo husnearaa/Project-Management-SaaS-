@@ -48,46 +48,46 @@ const data = {
     ],
   },
 
-  customer: {
+  member: {
     navMain: [
       {
         title: "Dashboard",
-        url: "/customer",
+        url: "/member",
         icon: LayoutDashboard,
       },
       {
         title: "Booking Service",
-        url: "/customer/booking-service",
+        url: "/member/booking-service",
         icon: MdOutlineEventNote,
       },
       {
         title: "Payments and Reviews",
-        url: "/customer/payments-reviews",
+        url: "/member/payments-reviews",
         icon: MdOutlineEventNote,
       },
     ],
   },
 
-  technician: {
+  manager: {
     navMain: [
       {
         title: "Dashboard",
-        url: "/technician",
+        url: "/manager",
         icon: LayoutDashboard,
       },
       {
         title: "Service Management",
-        url: "/technician/services",
+        url: "/manager/services",
         icon: Wrench,
       },
       {
         title: "Availability",
-        url: "/technician/availability",
+        url: "/manager/availability",
         icon: CalendarDays,
       },
       {
         title: "Booking Management",
-        url: "/technician/booking",
+        url: "/manager/booking",
         icon: CalendarCheck,
       },
     ],
