@@ -17,6 +17,9 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
+import { useLoginMutation } from "@/redux/api/authApi";
+
+
 
 type LoginFormData = {
   email: string;
@@ -25,8 +28,17 @@ type LoginFormData = {
 
 type UserRole = "ADMIN" | "MANAGER" | "MEMBER";
 
+type AuthUser = {
+  id?: string;
+  name?: string;
+  email?: string;
+  role?: UserRole;
+  [key: string]: unknown;
+};
+
 type AuthResponse = {
   success?: boolean;
+  statusCode?: number;
   message?: string;
   data?: {
     accessToken?: string;
@@ -36,13 +48,17 @@ type AuthResponse = {
       accessToken?: string;
       refreshToken?: string;
     };
-    user?: {
-      id?: string;
-      email?: string;
-      role?: UserRole;
-      [key: string]: unknown;
-    };
+    user?: AuthUser;
+    id?: string;
+    name?: string;
+    email?: string;
+    role?: UserRole;
+    [key: string]: unknown;
   };
+};
+
+type GoogleCredentialResponse = {
+  credential: string;
 };
 
 declare global {
@@ -52,7 +68,7 @@ declare global {
         id: {
           initialize: (config: {
             client_id: string;
-            callback: (response: { credential: string }) => void;
+            callback: (response: GoogleCredentialResponse) => void;
           }) => void;
           renderButton: (
             element: HTMLElement,
@@ -103,12 +119,55 @@ function getDashboardPath(role?: string) {
     case "ADMIN":
       return "/admin";
     case "MANAGER":
-       return "/manager";
+      return "/manager";
     case "MEMBER":
       return "/member";
     default:
       return "/dashboard";
   }
+}
+
+function saveAuthData(result: AuthResponse) {
+  if (!result.success) {
+    throw new Error(result.message || "Login failed.");
+  }
+
+  const data = result.data;
+
+  const accessToken =
+    data?.accessToken ?? data?.tokens?.accessToken ?? data?.token;
+
+  const refreshToken =
+    data?.refreshToken ?? data?.tokens?.refreshToken;
+
+  const user: AuthUser | undefined =
+    data?.user ??
+    (data?.id && data?.email
+      ? {
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          role: data.role,
+        }
+      : undefined);
+
+  if (!accessToken) {
+    throw new Error(
+      "Login succeeded, but no access token was returned by the API.",
+    );
+  }
+
+  localStorage.setItem("accessToken", accessToken);
+
+  if (refreshToken) {
+    localStorage.setItem("refreshToken", refreshToken);
+  }
+
+  if (user) {
+    localStorage.setItem("user", JSON.stringify(user));
+  }
+
+  return user;
 }
 
 export default function LoginPage() {
@@ -117,6 +176,8 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loadingRole, setLoadingRole] = useState<UserRole | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  const [login, { isLoading: isLoginLoading }] = useLoginMutation();
 
   const {
     register,
@@ -132,29 +193,12 @@ export default function LoginPage() {
 
   const finishLogin = useCallback(
     (result: AuthResponse) => {
-      const data = result.data;
-      const accessToken =
-        data?.accessToken ?? data?.tokens?.accessToken ?? data?.token;
-      const refreshToken =
-        data?.refreshToken ?? data?.tokens?.refreshToken;
-      const user = data?.user;
-
-      if (!result.success || !accessToken) {
-        throw new Error(result.message || "Login failed.");
-      }
-
-      localStorage.setItem("accessToken", accessToken);
-
-      if (refreshToken) {
-        localStorage.setItem("refreshToken", refreshToken);
-      }
-
-      if (user) {
-        localStorage.setItem("user", JSON.stringify(user));
-      }
+      const user = saveAuthData(result);
 
       toast.success(result.message || "Login successful!");
+
       router.replace(getDashboardPath(user?.role));
+      router.refresh();
     },
     [router],
   );
@@ -163,81 +207,86 @@ export default function LoginPage() {
     credentials: LoginFormData,
     role?: UserRole,
   ) => {
-    if (!API_URL) {
-      toast.error("API URL is missing. Check your .env.local file.");
-      return;
-    }
-
     setLoadingRole(role ?? null);
 
     try {
       console.log("Login Form Data:", credentials);
 
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(credentials),
-      });
-
-      const result = (await response.json()) as AuthResponse;
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || "Invalid email or password.");
-      }
+      // Use RTK Query for email/password and demo login.
+      const result = (await login(credentials).unwrap()) as AuthResponse;
 
       finishLogin(result);
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Unable to log in. Please try again.",
-      );
+    } catch (error: unknown) {
+      let message = "Invalid email or password.";
+
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "data" in error &&
+        typeof error.data === "object" &&
+        error.data !== null &&
+        "message" in error.data &&
+        typeof error.data.message === "string"
+      ) {
+        message = error.data.message;
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
+
+      toast.error(message);
     } finally {
       setLoadingRole(null);
     }
   };
 
   const onSubmit = async (data: LoginFormData) => {
-    console.log("Submitted Login Form Data:", data);
     await loginWithCredentials(data);
   };
 
-  const handleGoogleCredential = async (credential: string) => {
-    if (!API_URL) {
-      toast.error("API URL is missing. Check your .env.local file.");
-      return;
-    }
-
-    setGoogleLoading(true);
-
-    try {
-      const response = await fetch(`${API_URL}/auth/google`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ credential }),
-      });
-
-      const result = (await response.json()) as AuthResponse;
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || "Google login failed.");
+  // Google authentication follows your provided Google login component.
+  const handleGoogleCredential = useCallback(
+    async (credential: string) => {
+      if (!API_URL) {
+        toast.error("Backend API URL is not configured.");
+        return;
       }
 
-      finishLogin(result);
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Google login failed. Please try again.",
-      );
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
+      setGoogleLoading(true);
+
+      try {
+        const response = await fetch(`${API_URL}/auth/google`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            idToken: credential,
+          }),
+        });
+
+        const result = (await response.json()) as AuthResponse;
+
+        console.log("Google Login Response:", result);
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.message || "Google login failed.");
+        }
+
+        finishLogin(result);
+      } catch (error) {
+        console.error("Google login error:", error);
+
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Unable to connect to the server. Please try again.",
+        );
+      } finally {
+        setGoogleLoading(false);
+      }
+    },
+    [finishLogin],
+  );
 
   const initializeGoogle = useCallback(() => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -265,14 +314,18 @@ export default function LoginPage() {
       theme: "outline",
       size: "large",
       shape: "rectangular",
-      width: Math.max(260, Math.floor(button.clientWidth)),
+      width: Math.max(260, Math.floor(button.clientWidth || 300)),
       text: "continue_with",
     });
-  }, []);
+  }, [handleGoogleCredential]);
 
   useEffect(() => {
-    if (window.google) initializeGoogle();
+    if (window.google) {
+      initializeGoogle();
+    }
   }, [initializeGoogle]);
+
+  const isBusy = isSubmitting || isLoginLoading || googleLoading;
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
@@ -282,7 +335,6 @@ export default function LoginPage() {
         onLoad={initializeGoogle}
       />
 
-      {/* Centered Login Form */}
       <section className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-6">
         <div className="mx-auto w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-9">
           <div className="mb-8 text-center">
@@ -396,19 +448,16 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={isSubmitting || loadingRole !== null || googleLoading}
+              disabled={isBusy || loadingRole !== null}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting ? (
+              {isSubmitting || isLoginLoading ? (
                 <>
                   <LoaderCircle size={18} className="animate-spin" />
                   Signing in...
                 </>
               ) : (
-                <>
-                  Sign in
-                  {/* <ArrowRight size={17} /> */}
-                </>
+                "Sign in"
               )}
             </button>
           </form>
@@ -421,7 +470,6 @@ export default function LoginPage() {
             <div className="h-px flex-1 bg-slate-200" />
           </div>
 
-          {/* Google Login */}
           <div className="relative">
             <div
               id="google-login-button"
@@ -444,13 +492,14 @@ export default function LoginPage() {
             )}
           </div>
 
-          {/* Demo Accounts */}
           <div className="mt-8">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold text-slate-900">
                 Try a demo account
               </h2>
-              <span className="text-xs text-slate-500">One-click login</span>
+              <span className="text-xs text-slate-500">
+                One-click login
+              </span>
             </div>
 
             <div className="grid grid-cols-3 gap-2">
@@ -466,11 +515,7 @@ export default function LoginPage() {
                   <button
                     key={account.role}
                     type="button"
-                    disabled={
-                      isSubmitting ||
-                      loadingRole !== null ||
-                      googleLoading
-                    }
+                    disabled={isBusy || loadingRole !== null}
                     onClick={() => {
                       setValue("email", account.email);
                       setValue("password", account.password);
