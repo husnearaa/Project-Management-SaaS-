@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import {
-  ArrowRight,
   Eye,
   EyeOff,
   FolderKanban,
@@ -408,7 +407,7 @@ export default function LoginPage() {
               ) : (
                 <>
                   Sign in
-                  <ArrowRight size={17} />
+                  {/* <ArrowRight size={17} /> */}
                 </>
               )}
             </button>
