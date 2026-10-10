@@ -204,6 +204,7 @@ function saveAuthData(
         dispatch(
           setUser({
             token: accessToken,
+            user: user as Parameters<typeof setUser>[0]["user"],
           })
         );
 

@@ -1,25 +1,19 @@
-
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import {
+  useForm,
+} from "react-hook-form";
 import {
   useAddMemberMutation,
   useCreateProjectMutation,
-
-
   useDeleteMemberMutation,
-
-
   useDeleteProjectMutation,
-
-
   useGetAllProjectsQuery,
-
   useGetProjectByIdQuery,
-
   useUpdateProjectMutation,
 } from "@/redux/api/managerApi";
+import { useAppSelector } from "@/redux/hooks";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -43,7 +37,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-type ProjectStatus = "PLANNING" | "IN_PROGRESS" | "COMPLETED" | "ON_HOLD";
+type ProjectStatus =
+  | "PLANNING"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "ON_HOLD";
 
 type ProjectUser = {
   id: string;
@@ -92,30 +90,37 @@ type ApiResponse<T> = {
   };
 };
 
-type ProjectForm = {
+type ProjectFormValues = {
   name: string;
   description: string;
   status: ProjectStatus;
   deadline: string;
 };
 
+type MemberFormValues = {
+  userId: string;
+};
+
 const PAGE_SIZE = 9;
 
-const STATUS_OPTIONS: { label: string; value: ProjectStatus }[] = [
+const STATUS_OPTIONS: {
+  label: string;
+  value: ProjectStatus;
+}[] = [
   { label: "Planning", value: "PLANNING" },
   { label: "In progress", value: "IN_PROGRESS" },
   { label: "Completed", value: "COMPLETED" },
   { label: "On hold", value: "ON_HOLD" },
 ];
 
-const EMPTY_FORM: ProjectForm = {
+const EMPTY_FORM: ProjectFormValues = {
   name: "",
   description: "",
   status: "PLANNING",
   deadline: "",
 };
 
-function formatDate(date: string | null | undefined) {
+function formatDate(date?: string | null) {
   if (!date) return "No deadline";
 
   const parsed = new Date(date);
@@ -129,7 +134,7 @@ function formatDate(date: string | null | undefined) {
   }).format(parsed);
 }
 
-function getDateInputValue(date: string | null | undefined) {
+function getDateInputValue(date?: string | null) {
   if (!date) return "";
 
   const parsed = new Date(date);
@@ -165,7 +170,10 @@ function getStatusClasses(status: string) {
   return classes[status] ?? "bg-slate-100 text-slate-600 ring-slate-500/20";
 }
 
-function isOverdue(deadline: string | null | undefined, status: string) {
+function isOverdue(
+  deadline?: string | null,
+  status?: string,
+) {
   if (!deadline || status === "COMPLETED") return false;
 
   return new Date(deadline).getTime() < Date.now();
@@ -177,11 +185,23 @@ function getErrorMessage(error: unknown, fallback: string) {
     typeof error === "object" &&
     "data" in error &&
     error.data &&
-    typeof error.data === "object" &&
-    "message" in error.data &&
-    typeof error.data.message === "string"
+    typeof error.data === "object"
   ) {
-    return error.data.message;
+    const data = error.data as {
+      message?: string;
+      errors?: { field?: string; message?: string }[];
+    };
+
+    if (data.errors?.length) {
+      return data.errors
+        .map((item) => item.message)
+        .filter(Boolean)
+        .join(" ");
+    }
+
+    if (typeof data.message === "string") {
+      return data.message;
+    }
   }
 
   if (
@@ -196,7 +216,7 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-function getInitials(name: string | undefined) {
+function getInitials(name?: string) {
   if (!name) return "NA";
 
   return name
@@ -214,6 +234,19 @@ function getMemberUser(member: ProjectMember): ProjectUser {
       name: "Project member",
       email: "",
     }
+  );
+}
+
+const inputClass =
+  "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10";
+
+function FieldError({ children }: { children?: string }) {
+  if (!children) return null;
+
+  return (
+    <p className="mt-1.5 text-xs font-medium text-red-600">
+      {children}
+    </p>
   );
 }
 
@@ -247,7 +280,9 @@ function Modal({
       >
         <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-5 sm:px-6">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">{title}</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              {title}
+            </h2>
             {subtitle && (
               <p className="mt-1 text-sm leading-5 text-slate-500">
                 {subtitle}
@@ -282,30 +317,116 @@ function FormField({
 }) {
   return (
     <label className="block space-y-2">
-      <span className="text-sm font-semibold text-slate-700">{label}</span>
+      <span className="text-sm font-semibold text-slate-700">
+        {label}
+      </span>
       {children}
     </label>
   );
 }
 
-const inputClass =
-  "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10";
+function StatCard({
+  title,
+  value,
+  description,
+  icon,
+  iconClass,
+}: {
+  title: string;
+  value: number;
+  description: string;
+  icon: React.ReactNode;
+  iconClass: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-slate-500">{title}</p>
+          <p className="mt-3 text-3xl font-bold tracking-tight text-slate-950">
+            {value}
+          </p>
+        </div>
+        <div
+          className={`flex h-11 w-11 items-center justify-center rounded-xl ${iconClass}`}
+        >
+          {icon}
+        </div>
+      </div>
+      <p className="mt-3 text-xs text-slate-500">{description}</p>
+    </div>
+  );
+}
 
-export default function ProjectsPage() {
+function CountBox({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2.5 rounded-xl bg-slate-50 px-3 py-3">
+      <span className="shrink-0 text-slate-500">{icon}</span>
+      <div className="min-w-0">
+        <p className="text-xs text-slate-500">{label}</p>
+        <p className="mt-0.5 text-sm font-bold text-slate-900">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function DetailBox({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p className="mt-2 break-words text-sm font-bold text-slate-900">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+export default function Projects() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-
   const [formOpen, setFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [form, setForm] = useState<ProjectForm>(EMPTY_FORM);
   const [formLoading, setFormLoading] = useState(false);
-
   const [detailsProjectId, setDetailsProjectId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
-  const [memberUserId, setMemberUserId] = useState("");
   const [memberLoading, setMemberLoading] = useState(false);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+
+  // The logged-in manager is required by your current create-project schema.
+  const user = useAppSelector((state) => state.auth.user);
+
+  const {
+    register: registerProject,
+    handleSubmit: handleProjectSubmit,
+    reset: resetProjectForm,
+    formState: { errors: projectErrors },
+  } = useForm<ProjectFormValues>({
+    defaultValues: EMPTY_FORM,
+  });
+
+  const {
+    register: registerMember,
+    handleSubmit: handleMemberSubmit,
+    reset: resetMemberForm,
+    formState: { errors: memberErrors },
+  } = useForm<MemberFormValues>({
+    defaultValues: { userId: "" },
+  });
 
   const {
     data: projectsResponse,
@@ -329,8 +450,10 @@ export default function ProjectsPage() {
 
   const [createProject] = useCreateProjectMutation();
   const [updateProject] = useUpdateProjectMutation();
+
   const [deleteProject, { isLoading: deletingProject }] =
     useDeleteProjectMutation();
+
   const [addMember] = useAddMemberMutation();
   const [deleteMember] = useDeleteMemberMutation();
 
@@ -340,7 +463,6 @@ export default function ProjectsPage() {
 
   const projects = projectsEnvelope?.data ?? [];
   const meta = projectsEnvelope?.meta;
-
   const total = meta?.total ?? projects.length;
   const totalPages = Math.max(1, meta?.totalPages ?? 1);
 
@@ -378,18 +500,20 @@ export default function ProjectsPage() {
 
   function openCreateDialog() {
     setEditingProject(null);
-    setForm(EMPTY_FORM);
+    resetProjectForm(EMPTY_FORM);
     setFormOpen(true);
   }
 
   function openEditDialog(project: Project) {
     setEditingProject(project);
-    setForm({
-      name: project.name,
+
+    resetProjectForm({
+      name: project.name ?? "",
       description: project.description ?? "",
-      status: project.status,
+      status: project.status ?? "PLANNING",
       deadline: getDateInputValue(project.deadline),
     });
+
     setFormOpen(true);
   }
 
@@ -398,43 +522,48 @@ export default function ProjectsPage() {
 
     setFormOpen(false);
     setEditingProject(null);
-    setForm(EMPTY_FORM);
+    resetProjectForm(EMPTY_FORM);
   }
 
-  async function handleSubmitProject(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!form.name.trim()) {
-      toast.error("Please enter a project name.");
-      return;
-    }
-
-    if (!form.description.trim()) {
-      toast.error("Please enter a project description.");
-      return;
-    }
-
-    const payload = {
-      name: form.name.trim(),
-      description: form.description.trim(),
-      status: form.status,
-      deadline: form.deadline
-        ? new Date(`${form.deadline}T23:59:59`).toISOString()
+  async function handleSubmitProject(values: ProjectFormValues) {
+    const commonPayload = {
+      name: values.name.trim(),
+      description: values.description.trim(),
+      status: values.status,
+      deadline: values.deadline
+        ? new Date(`${values.deadline}T23:59:59`).toISOString()
         : null,
     };
+
+    if (!commonPayload.name || !commonPayload.description) {
+      toast.error("Project name and description are required.");
+      return;
+    }
 
     setFormLoading(true);
 
     try {
       if (editingProject) {
+        // Update sends only editable fields.
         await updateProject({
           id: editingProject.id,
-          data: payload,
+          data: commonPayload,
         }).unwrap();
 
         toast.success("Project updated successfully.");
       } else {
-        await createProject(payload).unwrap();
+        if (!user?.id) {
+          toast.error(
+            "Unable to identify the logged-in manager. Please log in again.",
+          );
+          return;
+        }
+
+        // Your backend currently requires managerId in the create request.
+        await createProject({
+          ...commonPayload,
+          managerId: user.id,
+        }).unwrap();
 
         toast.success("Project created successfully.");
         setPage(1);
@@ -442,7 +571,8 @@ export default function ProjectsPage() {
 
       setFormOpen(false);
       setEditingProject(null);
-      setForm(EMPTY_FORM);
+      resetProjectForm(EMPTY_FORM);
+      await refetch();
     } catch (error) {
       toast.error(
         getErrorMessage(
@@ -464,26 +594,28 @@ export default function ProjectsPage() {
       await deleteProject({ id: deleteTarget.id }).unwrap();
 
       toast.success("Project deleted successfully.");
+
+      const deletedId = deleteTarget.id;
       setDeleteTarget(null);
 
-      if (detailsProjectId === deleteTarget.id) {
+      if (detailsProjectId === deletedId) {
         setDetailsProjectId(null);
       }
 
       if (projects.length === 1 && page > 1) {
         setPage((current) => current - 1);
+      } else {
+        await refetch();
       }
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to delete project."));
     }
   }
 
-  async function handleAddMember(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
+  async function handleAddMember(values: MemberFormValues) {
     if (!detailsProjectId) return;
 
-    const userId = memberUserId.trim();
+    const userId = values.userId.trim();
 
     if (!userId) {
       toast.error("Enter the user's ID.");
@@ -499,8 +631,10 @@ export default function ProjectsPage() {
       }).unwrap();
 
       toast.success("Project member added successfully.");
-      setMemberUserId("");
+
+      resetMemberForm({ userId: "" });
       await refetchDetails();
+      await refetch();
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to add project member."));
     } finally {
@@ -520,7 +654,9 @@ export default function ProjectsPage() {
       }).unwrap();
 
       toast.success("Project member removed successfully.");
+
       await refetchDetails();
+      await refetch();
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to remove project member."));
     } finally {
@@ -531,56 +667,27 @@ export default function ProjectsPage() {
   return (
     <main className="min-h-screen bg-slate-50/80">
       <div className="mx-auto w-full max-w-[1440px] px-5 py-7 sm:px-8 sm:py-9 lg:px-12">
-        {/* Page heading */}
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-sm text-slate-500">
-              <Link
-                href="/manager"
-                className="transition hover:text-blue-700"
-              >
-                Dashboard
-              </Link>
-              <span>/</span>
-              <span className="font-medium text-slate-800">Projects</span>
-            </div>
-
             <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
               Projects
             </h1>
-
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
               Organize projects, manage team members, and keep track of
               deadlines and progress.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => refetch()}
-              disabled={isFetching}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:opacity-60"
-            >
-              <RefreshCw
-                size={16}
-                className={isFetching ? "animate-spin" : ""}
-              />
-              Refresh
-            </button>
-
-            <button
-              type="button"
-              onClick={openCreateDialog}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-700/20"
-            >
-              <Plus size={18} />
-              New project
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={openCreateDialog}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-700/20"
+          >
+            <Plus size={18} />
+            New project
+          </button>
         </div>
 
-        {/* Summary cards */}
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             title="Total projects"
@@ -612,7 +719,6 @@ export default function ProjectsPage() {
           />
         </div>
 
-        {/* Search and filters */}
         <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -663,7 +769,6 @@ export default function ProjectsPage() {
           </div>
         </section>
 
-        {/* Loading */}
         {isLoading && (
           <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
@@ -681,7 +786,6 @@ export default function ProjectsPage() {
           </div>
         )}
 
-        {/* Error */}
         {!isLoading && isError && (
           <div className="mt-8 rounded-2xl border border-red-200 bg-white px-5 py-12 text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
@@ -704,7 +808,6 @@ export default function ProjectsPage() {
           </div>
         )}
 
-        {/* Project cards */}
         {!isLoading && !isError && (
           <>
             {filteredProjects.length === 0 ? (
@@ -761,11 +864,8 @@ export default function ProjectsPage() {
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
                           <FolderKanban size={21} />
                         </div>
-
                         <span
-                          className={`inline-flex max-w-[65%] items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${getStatusClasses(
-                            project.status,
-                          )}`}
+                          className={`inline-flex max-w-[65%] items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${getStatusClasses(project.status)}`}
                         >
                           {getStatusLabel(project.status)}
                         </span>
@@ -774,7 +874,6 @@ export default function ProjectsPage() {
                       <h3 className="mt-5 break-words text-lg font-bold leading-6 text-slate-900">
                         {project.name}
                       </h3>
-
                       <p className="mt-2 line-clamp-2 min-h-10 break-words text-sm leading-5 text-slate-500">
                         {project.description || "No description provided."}
                       </p>
@@ -789,9 +888,7 @@ export default function ProjectsPage() {
                               Deadline
                             </p>
                             <p
-                              className={`mt-1 break-words text-sm font-semibold ${
-                                overdue ? "text-red-600" : "text-slate-800"
-                              }`}
+                              className={`mt-1 break-words text-sm font-semibold ${overdue ? "text-red-600" : "text-slate-800"}`}
                             >
                               {formatDate(project.deadline)}
                               {overdue && (
@@ -839,13 +936,15 @@ export default function ProjectsPage() {
                       <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-slate-100 pt-5">
                         <button
                           type="button"
-                          onClick={() => setDetailsProjectId(project.id)}
+                          onClick={() => {
+                            resetMemberForm({ userId: "" });
+                            setDetailsProjectId(project.id);
+                          }}
                           className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-blue-50 px-3 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
                         >
                           <Eye size={16} />
                           Details
                         </button>
-
                         <button
                           type="button"
                           onClick={() => openEditDialog(project)}
@@ -855,7 +954,6 @@ export default function ProjectsPage() {
                         >
                           <Pencil size={16} />
                         </button>
-
                         <button
                           type="button"
                           onClick={() => setDeleteTarget(project)}
@@ -872,7 +970,6 @@ export default function ProjectsPage() {
               </div>
             )}
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div className="mt-8 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                 <p className="text-sm text-slate-500">
@@ -882,18 +979,18 @@ export default function ProjectsPage() {
                     {totalPages}
                   </span>
                 </p>
-
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     disabled={page <= 1 || isFetching}
-                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    onClick={() =>
+                      setPage((current) => Math.max(1, current - 1))
+                    }
                     className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
                   >
                     <ArrowLeft size={16} />
                     Previous
                   </button>
-
                   <button
                     type="button"
                     disabled={page >= totalPages || isFetching}
@@ -912,7 +1009,7 @@ export default function ProjectsPage() {
         )}
       </div>
 
-      {/* Create / Edit project dialog */}
+      {/* Create / Edit project */}
       {formOpen && (
         <Modal
           title={editingProject ? "Edit project" : "Create a project"}
@@ -924,51 +1021,54 @@ export default function ProjectsPage() {
           onClose={closeFormDialog}
           wide
         >
-          <form onSubmit={handleSubmitProject} className="space-y-5">
+          <form
+            onSubmit={handleProjectSubmit(handleSubmitProject)}
+            className="space-y-5"
+          >
             <FormField label="Project name">
               <input
-                required
-                maxLength={150}
-                value={form.name}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    name: event.target.value,
-                  }))
-                }
+                {...registerProject("name", {
+                  required: "Project name is required.",
+                  maxLength: {
+                    value: 150,
+                    message: "Project name cannot exceed 150 characters.",
+                  },
+                  validate: (value) =>
+                    value.trim().length > 0 ||
+                    "Project name cannot be empty.",
+                })}
                 placeholder="e.g. Project Management SaaS"
                 className={inputClass}
               />
+              <FieldError>{projectErrors.name?.message}</FieldError>
             </FormField>
 
             <FormField label="Description">
               <textarea
-                required
+                {...registerProject("description", {
+                  required: "Description is required.",
+                  maxLength: {
+                    value: 2000,
+                    message: "Description cannot exceed 2000 characters.",
+                  },
+                  validate: (value) =>
+                    value.trim().length > 0 ||
+                    "Description cannot be empty.",
+                })}
                 rows={4}
-                maxLength={2000}
-                value={form.description}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    description: event.target.value,
-                  }))
-                }
                 placeholder="Describe the project and its goals..."
                 className={`${inputClass} resize-y`}
               />
+              <FieldError>{projectErrors.description?.message}</FieldError>
             </FormField>
 
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <FormField label="Project status">
                 <div className="relative">
                   <select
-                    value={form.status}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        status: event.target.value as ProjectStatus,
-                      }))
-                    }
+                    {...registerProject("status", {
+                      required: "Please select a status.",
+                    })}
                     className={`${inputClass} appearance-none pr-10`}
                   >
                     {STATUS_OPTIONS.map((status) => (
@@ -982,20 +1082,26 @@ export default function ProjectsPage() {
                     className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                   />
                 </div>
+                <FieldError>{projectErrors.status?.message}</FieldError>
               </FormField>
 
               <FormField label="Deadline">
                 <input
                   type="date"
-                  value={form.deadline}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      deadline: event.target.value,
-                    }))
-                  }
+                  {...registerProject("deadline", {
+                    validate: (value) => {
+                      if (!value) return true;
+
+                      return (
+                        !Number.isNaN(
+                          new Date(`${value}T23:59:59`).getTime(),
+                        ) || "Please enter a valid deadline."
+                      );
+                    },
+                  })}
                   className={inputClass}
                 />
+                <FieldError>{projectErrors.deadline?.message}</FieldError>
               </FormField>
             </div>
 
@@ -1008,7 +1114,6 @@ export default function ProjectsPage() {
               >
                 Cancel
               </button>
-
               <button
                 type="submit"
                 disabled={formLoading}
@@ -1038,7 +1143,7 @@ export default function ProjectsPage() {
           onClose={() => {
             if (!memberLoading && !removingMemberId) {
               setDetailsProjectId(null);
-              setMemberUserId("");
+              resetMemberForm({ userId: "" });
             }
           }}
           wide
@@ -1050,10 +1155,7 @@ export default function ProjectsPage() {
             </div>
           ) : !projectDetails ? (
             <div className="py-10 text-center">
-              <CircleAlert
-                size={28}
-                className="mx-auto text-amber-500"
-              />
+              <CircleAlert size={28} className="mx-auto text-amber-500" />
               <p className="mt-3 font-semibold text-slate-800">
                 Project details unavailable
               </p>
@@ -1073,9 +1175,7 @@ export default function ProjectsPage() {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <span
-                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${getStatusClasses(
-                      projectDetails.status,
-                    )}`}
+                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${getStatusClasses(projectDetails.status)}`}
                   >
                     {getStatusLabel(projectDetails.status)}
                   </span>
@@ -1155,10 +1255,7 @@ export default function ProjectsPage() {
                 <div className="mt-4 space-y-3">
                   {(projectDetails.members ?? []).length === 0 ? (
                     <div className="rounded-xl border border-dashed border-slate-200 px-4 py-7 text-center">
-                      <Users
-                        size={24}
-                        className="mx-auto text-slate-400"
-                      />
+                      <Users size={24} className="mx-auto text-slate-400" />
                       <p className="mt-2 text-sm font-semibold text-slate-700">
                         No members added yet
                       </p>
@@ -1168,7 +1265,7 @@ export default function ProjectsPage() {
                     </div>
                   ) : (
                     (projectDetails.members ?? []).map((member) => {
-                      const user = getMemberUser(member);
+                      const memberUser = getMemberUser(member);
 
                       return (
                         <div
@@ -1176,27 +1273,25 @@ export default function ProjectsPage() {
                           className="flex items-center gap-3 rounded-xl border border-slate-200 p-3"
                         >
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
-                            {getInitials(user.name)}
+                            {getInitials(memberUser.name)}
                           </div>
-
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold text-slate-800">
-                              {user.name}
+                              {memberUser.name}
                             </p>
                             <p className="truncate text-xs text-slate-500">
-                              {user.email || user.id}
+                              {memberUser.email || memberUser.id}
                             </p>
                           </div>
-
                           <button
                             type="button"
-                            disabled={removingMemberId === user.id}
-                            onClick={() => handleRemoveMember(user.id)}
-                            aria-label={`Remove ${user.name}`}
+                            disabled={removingMemberId === memberUser.id}
+                            onClick={() => handleRemoveMember(memberUser.id)}
+                            aria-label={`Remove ${memberUser.name}`}
                             title="Remove member"
                             className="inline-flex shrink-0 items-center justify-center rounded-lg p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                           >
-                            {removingMemberId === user.id ? (
+                            {removingMemberId === memberUser.id ? (
                               <LoaderCircle
                                 size={17}
                                 className="animate-spin"
@@ -1212,7 +1307,7 @@ export default function ProjectsPage() {
                 </div>
 
                 <form
-                  onSubmit={handleAddMember}
+                  onSubmit={handleMemberSubmit(handleAddMember)}
                   className="mt-5 rounded-xl bg-slate-50 p-4"
                 >
                   <label
@@ -1227,26 +1322,27 @@ export default function ProjectsPage() {
                   </p>
 
                   <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-                    <input
-                      id="member-user-id"
-                      value={memberUserId}
-                      onChange={(event) =>
-                        setMemberUserId(event.target.value)
-                      }
-                      placeholder="Enter user ID"
-                      className={`${inputClass} min-w-0 flex-1`}
-                    />
-
+                    <div className="min-w-0 flex-1">
+                      <input
+                        id="member-user-id"
+                        {...registerMember("userId", {
+                          required: "User ID is required.",
+                          validate: (value) =>
+                            value.trim().length > 0 ||
+                            "User ID cannot be empty.",
+                        })}
+                        placeholder="Enter user ID"
+                        className={inputClass}
+                      />
+                      <FieldError>{memberErrors.userId?.message}</FieldError>
+                    </div>
                     <button
                       type="submit"
-                      disabled={memberLoading || !memberUserId.trim()}
+                      disabled={memberLoading}
                       className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {memberLoading ? (
-                        <LoaderCircle
-                          size={16}
-                          className="animate-spin"
-                        />
+                        <LoaderCircle size={16} className="animate-spin" />
                       ) : (
                         <Plus size={17} />
                       )}
@@ -1261,7 +1357,7 @@ export default function ProjectsPage() {
                   type="button"
                   onClick={() => {
                     setDetailsProjectId(null);
-                    setMemberUserId("");
+                    resetMemberForm({ userId: "" });
                   }}
                   className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
@@ -1291,9 +1387,8 @@ export default function ProjectsPage() {
                 {deleteTarget.name}
               </p>
               <p className="mt-1 text-sm leading-5 text-slate-600">
-                Are you sure you want to delete this project? Confirm that
-                deleting it is allowed by your backend&apos;s project and task
-                relationship rules.
+                Are you sure you want to delete this project? This action
+                cannot be undone.
               </p>
             </div>
           </div>
@@ -1307,7 +1402,6 @@ export default function ProjectsPage() {
             >
               Cancel
             </button>
-
             <button
               type="button"
               disabled={deletingProject}
@@ -1325,75 +1419,5 @@ export default function ProjectsPage() {
         </Modal>
       )}
     </main>
-  );
-}
-
-function StatCard({
-  title,
-  value,
-  description,
-  icon,
-  iconClass,
-}: {
-  title: string;
-  value: number;
-  description: string;
-  icon: React.ReactNode;
-  iconClass: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-slate-500">{title}</p>
-          <p className="mt-3 text-3xl font-bold tracking-tight text-slate-950">
-            {value}
-          </p>
-        </div>
-        <div
-          className={`flex h-11 w-11 items-center justify-center rounded-xl ${iconClass}`}
-        >
-          {icon}
-        </div>
-      </div>
-      <p className="mt-3 text-xs text-slate-500">{description}</p>
-    </div>
-  );
-}
-
-function CountBox({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-}) {
-  return (
-    <div className="flex min-w-0 items-center gap-2.5 rounded-xl bg-slate-50 px-3 py-3">
-      <span className="shrink-0 text-slate-500">{icon}</span>
-      <div className="min-w-0">
-        <p className="text-xs text-slate-500">{label}</p>
-        <p className="mt-0.5 text-sm font-bold text-slate-900">{value}</p>
-      </div>
-    </div>
-  );
-}
-
-function DetailBox({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <p className="text-xs font-medium text-slate-500">{label}</p>
-      <p className="mt-2 break-words text-sm font-bold text-slate-900">
-        {value}
-      </p>
-    </div>
   );
 }

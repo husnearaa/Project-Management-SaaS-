@@ -49,9 +49,10 @@ export const ManagerApi = baseApi.injectEndpoints({
     }),
 
     updateProject: builder.mutation({
-      query: ({ id }) => ({
+      query: ({ id, data }) => ({
         url: `/projects/${id}`,
         method: "PATCH",
+          body: data,
       }),
       invalidatesTags: ["Admin"],
     }),
