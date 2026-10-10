@@ -72,6 +72,7 @@ const Navbar = () => {
   const { token, isAuthenticated } = useAppSelector(
     (state) => state.auth,
   );
+  
 
   useEffect(() => {
     dispatch(initializeAuth());

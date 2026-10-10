@@ -202,7 +202,8 @@ export const baseApi = createApi({
   tagTypes: [
    "Admin",
    "Manager",
-   "Payment",  
+   "Payment", 
+   "User", 
   ],
   endpoints: () => ({}),
 });

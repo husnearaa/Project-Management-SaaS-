@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo } from "react";
@@ -6,7 +5,6 @@ import Link from "next/link";
 import {
   Activity,
   ArrowRight,
-  ArrowUpRight,
   CalendarDays,
   CheckCircle2,
   FolderKanban,
@@ -16,13 +14,10 @@ import {
   Target,
   Users,
   AlertTriangle,
-  CheckCheck,
-  BriefcaseBusiness,
 } from "lucide-react";
-import { useGetAllProjectsQuery } from "@/redux/api/managerApi";
 import {
+  useGetAllProjectsQuery,
   useGetAllTasksQuery,
-  useGetMyTasksQuery,
 } from "@/redux/api/managerApi";
 
 type ProjectStatus = "PLANNING" | "IN_PROGRESS" | "COMPLETED" | "ON_HOLD";
@@ -267,6 +262,7 @@ function ErrorMessage({
     <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-rose-700">{message}</p>
+
         <button
           onClick={onRetry}
           className="inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100"
@@ -314,24 +310,8 @@ export default function ManagerDashboard() {
     refetch: () => void;
   };
 
-  const {
-    data: myTasksResponse,
-    isLoading: myTasksLoading,
-    isError: myTasksError,
-    refetch: refetchMyTasks,
-  } = useGetMyTasksQuery({
-    page: 1,
-    limit: PAGE_SIZE,
-  }) as {
-    data: ApiResponse<Task[]> | undefined;
-    isLoading: boolean;
-    isError: boolean;
-    refetch: () => void;
-  };
-
   const projects = projectsResponse?.data ?? [];
   const tasks = tasksResponse?.data ?? [];
-  const myTasks = myTasksResponse?.data ?? [];
 
   const stats = useMemo(() => {
     const completedTasks = tasks.filter(
@@ -363,7 +343,6 @@ export default function ManagerDashboard() {
 
     const activeProjects = projects.filter((project) => {
       const status = project.status.toUpperCase();
-
       return status !== "COMPLETED" && status !== "CANCELLED";
     }).length;
 
@@ -399,25 +378,18 @@ export default function ManagerDashboard() {
       })
       .sort(
         (a, b) =>
-          new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime(),
+          new Date(a.deadline!).getTime() -
+          new Date(b.deadline!).getTime(),
       )
       .slice(0, 4);
   }, [projects]);
-
-  const recentTasks = useMemo(() => {
-    return [...myTasks]
-      .sort(
-        (a, b) =>
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-      )
-      .slice(0, 5);
-  }, [myTasks]);
 
   const recentProjects = useMemo(() => {
     return [...projects]
       .sort(
         (a, b) =>
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+          new Date(b.updatedAt).getTime() -
+          new Date(a.updatedAt).getTime(),
       )
       .slice(0, 4);
   }, [projects]);
@@ -427,7 +399,6 @@ export default function ManagerDashboard() {
   const refreshDashboard = () => {
     refetchProjects();
     refetchTasks();
-    refetchMyTasks();
   };
 
   const anyMainError = projectsError || tasksError;
@@ -543,6 +514,7 @@ export default function ManagerDashboard() {
                   Status breakdown of the tasks returned by the API
                 </p>
               </div>
+
               <div className="rounded-xl bg-blue-50 p-3 text-[#075BE8]">
                 <Target size={21} />
               </div>
@@ -557,7 +529,10 @@ export default function ManagerDashboard() {
               </div>
             ) : tasks.length === 0 ? (
               <div className="mt-6 rounded-xl bg-slate-50 px-4 py-8 text-center">
-                <ListTodo className="mx-auto text-slate-400" size={28} />
+                <ListTodo
+                  className="mx-auto text-slate-400"
+                  size={28}
+                />
                 <p className="mt-3 text-sm font-semibold text-slate-700">
                   No tasks available
                 </p>
@@ -576,6 +551,7 @@ export default function ManagerDashboard() {
                       Completion rate
                     </p>
                   </div>
+
                   <p className="text-right text-sm text-slate-500">
                     {stats.completedTasks} of {tasks.length} loaded tasks
                   </p>
@@ -635,7 +611,9 @@ export default function ManagerDashboard() {
 
           {/* Quick actions */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-            <h2 className="text-lg font-bold text-slate-900">Quick Actions</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              Quick Actions
+            </h2>
             <p className="mt-1 text-sm text-slate-500">
               Jump to a common manager task
             </p>
@@ -823,6 +801,7 @@ export default function ManagerDashboard() {
                       <div className="rounded-lg bg-amber-50 p-2 text-amber-700">
                         <CalendarDays size={18} />
                       </div>
+
                       <div className="min-w-0 flex-1">
                         <p className="line-clamp-1 text-sm font-semibold text-slate-800">
                           {project.name}
@@ -854,134 +833,6 @@ export default function ManagerDashboard() {
           </div>
         </section>
 
-        {/* My tasks */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-          <SectionHeading
-            title="My Tasks"
-            description="Tasks assigned to you, based on the Get My Tasks API"
-            href="/manager/tasks"
-            linkLabel="View all tasks"
-          />
-
-          {myTasksLoading ? (
-            <div className="flex h-36 items-center justify-center">
-              <LoaderCircle
-                className="animate-spin text-[#075BE8]"
-                size={25}
-              />
-            </div>
-          ) : myTasksError ? (
-            <div className="mt-5">
-              <ErrorMessage
-                message="Could not load your assigned tasks."
-                onRetry={refetchMyTasks}
-              />
-            </div>
-          ) : recentTasks.length === 0 ? (
-            <div className="mt-5 rounded-xl bg-slate-50 px-4 py-10 text-center">
-              <CheckCheck className="mx-auto text-slate-400" size={30} />
-              <p className="mt-3 text-sm font-semibold text-slate-700">
-                No tasks assigned to you
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                Your assigned tasks will appear here.
-              </p>
-            </div>
-          ) : (
-            <div className="mt-5 overflow-x-auto">
-              <table className="w-full min-w-[700px] border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    <th className="px-3 py-3 font-semibold">Task</th>
-                    <th className="px-3 py-3 font-semibold">Project</th>
-                    <th className="px-3 py-3 font-semibold">Priority</th>
-                    <th className="px-3 py-3 font-semibold">Due date</th>
-                    <th className="px-3 py-3 font-semibold">Status</th>
-                    <th className="px-3 py-3 text-right font-semibold">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {recentTasks.map((task) => {
-                    const days = getDaysRemaining(task.dueDate);
-                    const isOverdue =
-                      days !== null &&
-                      days < 0 &&
-                      task.status.toUpperCase() !== "COMPLETED" &&
-                      task.status.toUpperCase() !== "CANCELLED";
-
-                    return (
-                      <tr
-                        key={task.id}
-                        className="transition hover:bg-slate-50/80"
-                      >
-                        <td className="max-w-[260px] px-3 py-4">
-                          <p className="truncate text-sm font-semibold text-slate-800">
-                            {task.title}
-                          </p>
-                          <p className="mt-1 line-clamp-1 text-xs text-slate-500">
-                            {task.description || "No description"}
-                          </p>
-                        </td>
-
-                        <td className="max-w-[180px] px-3 py-4">
-                          <p className="truncate text-sm text-slate-600">
-                            {task.project?.name || "Unknown project"}
-                          </p>
-                        </td>
-
-                        <td className="px-3 py-4">
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getPriorityStyle(task.priority)}`}
-                          >
-                            {humanize(task.priority)}
-                          </span>
-                        </td>
-
-                        <td className="px-3 py-4">
-                          <p
-                            className={`text-sm ${
-                              isOverdue
-                                ? "font-semibold text-rose-600"
-                                : "text-slate-600"
-                            }`}
-                          >
-                            {formatDate(task.dueDate)}
-                          </p>
-                          {isOverdue && (
-                            <span className="mt-1 block text-xs text-rose-500">
-                              Overdue
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="px-3 py-4">
-                          <span
-                            className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${getStatusStyle(task.status)}`}
-                          >
-                            {humanize(task.status)}
-                          </span>
-                        </td>
-
-                        <td className="px-3 py-4 text-right">
-                          <Link
-                            href={`/manager/tasks/${task.id}`}
-                            className="inline-flex items-center gap-1 whitespace-nowrap text-sm font-semibold text-[#075BE8] hover:text-blue-800"
-                          >
-                            Details
-                            <ArrowUpRight size={15} />
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-
         {/* Footer note */}
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
           <p className="flex items-center gap-2">
@@ -994,3 +845,4 @@ export default function ManagerDashboard() {
     </main>
   );
 }
+

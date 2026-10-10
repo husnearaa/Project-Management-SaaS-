@@ -1,3 +1,4 @@
+
 "use client";
 
 import AppSidebar from "@/components/shared/sidebar/app-sidebar";
@@ -17,35 +18,37 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const token = useAppSelector((state) => state.auth.token);
+  const user = useAppSelector((state) => state.auth.user);
 
   const decodedToken = useDecodedToken(token);
 
-  // Get the user's role dynamically from the JWT token
-  const role =
-    typeof decodedToken?.role === "string"
-      ? decodedToken.role
-      : typeof decodedToken?.activeRole === "string"
-        ? decodedToken.activeRole
-        : "MEMBER";
+  // Get the role from Redux first, then from the JWT.
+  const role = user?.role ?? decodedToken?.role ?? decodedToken?.activeRole;
+
+  if (!token || typeof role !== "string") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100">
+        <p className="text-sm text-gray-500">Loading dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider>
-      {/* Pass the user's actual role dynamically */}
       <AppSidebar role={role} />
 
       <SidebarInset>
         <header
-          className="flex justify-between items-center gap-2 
-                 h-20 shrink-0 px-4 lg:px-8 
-                 sticky top-0 z-50 bg-white shadow-xs
-                 transition-[width,height] ease-linear
-                 group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12"
+          className="flex justify-between items-center gap-2
+            h-20 shrink-0 px-4 lg:px-8
+            sticky top-0 z-50 bg-white shadow-xs
+            transition-[width,height] ease-linear
+            group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12"
         >
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1" />
           </div>
 
-          {/* Right Section: Profile */}
           <div className="flex flex-col lg:flex-row gap-5 lg:pr-8">
             <div className="flex items-center gap-3">
               <div className="flex items-center text-primary rounded-full">
@@ -62,3 +65,4 @@ export default function DashboardLayout({
     </SidebarProvider>
   );
 }
+

@@ -48,7 +48,32 @@ const data = {
     ],
   },
 
-  member: {
+  manager: {
+    navMain: [
+      {
+        title: "Dashboard",
+        url: "/manager",
+        icon: LayoutDashboard,
+      },
+      {
+        title: "Project Management",
+        url: "/manager/projects",
+        icon: Wrench,
+      },
+      {
+        title: "Availability",
+        url: "/manager/availability",
+        icon: CalendarDays,
+      },
+      {
+        title: "Booking Management",
+        url: "/manager/booking",
+        icon: CalendarCheck,
+      },
+    ],
+  },
+
+    member: {
     navMain: [
       {
         title: "Dashboard",
@@ -68,30 +93,6 @@ const data = {
     ],
   },
 
-  manager: {
-    navMain: [
-      {
-        title: "Dashboard",
-        url: "/manager",
-        icon: LayoutDashboard,
-      },
-      {
-        title: "Service Management",
-        url: "/manager/services",
-        icon: Wrench,
-      },
-      {
-        title: "Availability",
-        url: "/manager/availability",
-        icon: CalendarDays,
-      },
-      {
-        title: "Booking Management",
-        url: "/manager/booking",
-        icon: CalendarCheck,
-      },
-    ],
-  },
 };
 
 interface AppSidebarProps {

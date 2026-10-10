@@ -13,7 +13,7 @@ export const ManagerApi = baseApi.injectEndpoints({
       providesTags: ["Manager"],
     }),
 
-      getProjectById: builder.query({
+    getProjectById: builder.query({
       query: (id) => ({
         url: `/projects/${id}`,
         method: "GET",
@@ -48,7 +48,7 @@ export const ManagerApi = baseApi.injectEndpoints({
       invalidatesTags: ["Manager"],
     }),
 
-        updateProject: builder.mutation({
+    updateProject: builder.mutation({
       query: ({ id }) => ({
         url: `/projects/${id}`,
         method: "PATCH",
@@ -57,7 +57,7 @@ export const ManagerApi = baseApi.injectEndpoints({
     }),
 
     addMember: builder.mutation({
-      query: ({id,data}) => ({
+      query: ({ id, data }) => ({
         url: `/projects/${id}/members`,
         method: "POST",
         body: data,
@@ -65,8 +65,7 @@ export const ManagerApi = baseApi.injectEndpoints({
       invalidatesTags: ["Manager"],
     }),
 
-
-     deleteProject: builder.mutation({
+    deleteProject: builder.mutation({
       query: ({ id }) => ({
         url: `/projects/${id}`,
         method: "DELETE",
@@ -74,14 +73,13 @@ export const ManagerApi = baseApi.injectEndpoints({
       invalidatesTags: ["Manager"],
     }),
 
-     deleteMember: builder.mutation({
+    deleteMember: builder.mutation({
       query: ({ id, userId }) => ({
         url: `/projects/${id}/members/${userId}`,
         method: "DELETE",
       }),
       invalidatesTags: ["Manager"],
     }),
-
   }),
 });
 
@@ -89,8 +87,10 @@ export const {
   useGetAllProjectsQuery,
   useGetAllTasksQuery,
   useGetMyTasksQuery,
-    useCreateProjectMutation,
-    useUpdateProjectMutation,
-    useAddMemberMutation,
-
+  useCreateProjectMutation,
+  useUpdateProjectMutation,
+  useAddMemberMutation,
+  useDeleteProjectMutation,
+  useDeleteMemberMutation,
+  useGetProjectByIdQuery,
 } = ManagerApi;
