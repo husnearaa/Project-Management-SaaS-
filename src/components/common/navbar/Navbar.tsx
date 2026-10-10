@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -8,6 +7,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { FaBars, FaTimes } from "react-icons/fa";
 import { ChevronDown, LayoutDashboard, LogOut } from "lucide-react";
 import { toast } from "sonner";
+import Cookies from "js-cookie";
+import { jwtDecode } from "jwt-decode";
+
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { initializeAuth, logout } from "@/redux/features/authSlice";
+
 
 const logo = "/logo.png";
 
@@ -19,6 +24,19 @@ const navLinks = [
   { href: "/contact", label: "Contact" },
 ];
 
+interface JwtPayload {
+  id?: string;
+  sub?: string;
+  userId?: string;
+  email?: string;
+  name?: string;
+  role?: string;
+  picture?: string;
+  image?: string;
+  avatar?: string;
+  exp?: number;
+}
+
 interface LoggedInUser {
   id?: string;
   name?: string;
@@ -27,86 +45,111 @@ interface LoggedInUser {
   picture?: string;
   image?: string;
   avatar?: string;
-  photoURL?: string;
-  profilePicture?: string;
 }
 
-export default function Navbar() {
+const getDashboardPath = (role?: string) => {
+  switch (role?.toUpperCase()) {
+    case "ADMIN":
+      return "/admin";
+    case "MANAGER":
+      return "/manager";
+    case "MEMBER":
+      return "/member";
+    default:
+      return "/dashboard";
+  }
+};
+
+const Navbar = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [user, setUser] = useState<LoggedInUser | null>(null);
 
   const pathname = usePathname();
   const router = useRouter();
+  const dispatch = useAppDispatch();
+
+  const { token, isAuthenticated } = useAppSelector(
+    (state) => state.auth,
+  );
 
   useEffect(() => {
-    const loadUser = () => {
-      try {
-        const storedUser = localStorage.getItem("user");
-        setUser(storedUser ? JSON.parse(storedUser) : null);
-      } catch {
-        setUser(null);
-      }
-    };
+    dispatch(initializeAuth());
+  }, [dispatch]);
 
-    loadUser();
+  useEffect(() => {
+    const currentToken = token || Cookies.get("accessToken");
 
-    window.addEventListener("storage", loadUser);
-
-    return () => {
-      window.removeEventListener("storage", loadUser);
-    };
-  }, [pathname]);
-
-  const isActive = (href: string) => pathname === href;
-  const closeSidebar = () => setIsSidebarOpen(false);
-
-  const getDashboardPath = () => {
-    switch (user?.role?.toUpperCase()) {
-      case "ADMIN":
-        return "/admin";
-      case "MANAGER":
-        return "/manager";
-      case "MEMBER":
-        return "/member";
-      default:
-        return "/dashboard";
+    if (!isAuthenticated || !currentToken) {
+      setUser(null);
+      return;
     }
-  };
+
+    try {
+      const decoded = jwtDecode<JwtPayload>(currentToken);
+
+      if (decoded.exp && decoded.exp * 1000 <= Date.now()) {
+        dispatch(logout());
+        setUser(null);
+        return;
+      }
+
+      setUser({
+        id: decoded.id || decoded.userId || decoded.sub,
+        name: decoded.name,
+        email: decoded.email,
+        role: decoded.role,
+        picture: decoded.picture,
+        image: decoded.image,
+        avatar: decoded.avatar,
+      });
+    } catch (error) {
+      console.error("Failed to decode authentication token:", error);
+      setUser(null);
+    }
+  }, [token, isAuthenticated, pathname, dispatch]);
 
   const handleLogout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("user");
+    dispatch(logout());
 
     setUser(null);
     setIsUserMenuOpen(false);
-    closeSidebar();
+    setIsSidebarOpen(false);
 
     toast.success("Logged out successfully!");
+
     router.push("/");
     router.refresh();
   };
 
-  const userImage =
-    user?.picture ||
-    user?.image ||
-    user?.avatar ||
-    user?.photoURL ||
-    user?.profilePicture;
+  const userImage = user?.picture || user?.image || user?.avatar;
+
+  const displayName =
+    user?.name || user?.email?.split("@")[0] || "User";
+
+  const dashboardPath = getDashboardPath(user?.role);
+
+  const handleNavigation = () => {
+    setIsSidebarOpen(false);
+    setIsUserMenuOpen(false);
+  };
 
   return (
     <nav className="fixed top-0 left-0 z-50 w-full border-b border-gray-100 bg-white">
-      <div className="mx-auto flex h-[76px] max-w-[1440px] items-center justify-between px-5 sm:px-8 lg:px-12">
+      <div className="mx-auto flex h-[76px] w-full max-w-[1440px] items-center justify-between px-5 sm:px-8 lg:px-12">
         {/* Logo */}
-        <Link href="/">
+        <Link
+          href="/"
+          onClick={handleNavigation}
+          className="flex shrink-0 items-center"
+        >
           <Image
             src={logo}
-            alt="ProjectFlow logo"
+            alt="ProjectFlow Logo"
             width={500}
             height={500}
             priority
-            className="h-20 w-60"
+            className="h-20 w-60 object-contain"
           />
         </Link>
 
@@ -116,11 +159,10 @@ export default function Navbar() {
             <Link
               key={link.href}
               href={link.href}
-              aria-current={isActive(link.href) ? "page" : undefined}
-              className={`text-[14px] font-semibold transition-colors duration-200 ${
-                isActive(link.href)
+              className={`text-sm font-medium transition-colors ${
+                pathname === link.href
                   ? "text-[#075BE8]"
-                  : "text-[#172033] hover:text-[#075BE8]"
+                  : "text-gray-600 hover:text-[#075BE8]"
               }`}
             >
               {link.label}
@@ -128,34 +170,34 @@ export default function Navbar() {
           ))}
         </div>
 
-        {/* Desktop Buttons / User Menu */}
-        <div className="hidden shrink-0 items-center gap-7 lg:flex">
-          {user ? (
+        {/* Desktop Auth / User Menu */}
+        <div className="hidden items-center gap-4 lg:flex">
+          {isAuthenticated && user ? (
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setIsUserMenuOpen((prev) => !prev)}
+                className="flex items-center gap-2 rounded-full border border-gray-200 px-3 py-2 transition hover:bg-gray-50"
                 aria-expanded={isUserMenuOpen}
                 aria-label="Open user menu"
-                className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-gray-50"
               >
                 {userImage ? (
                   <Image
                     src={userImage}
-                    alt={user.name || "User profile"}
-                    width={38}
-                    height={38}
+                    alt={displayName}
+                    width={36}
+                    height={36}
                     unoptimized
-                    className="h-[38px] w-[38px] rounded-full border border-gray-200 object-cover"
+                    className="h-9 w-9 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#075BE8] text-sm font-bold text-white">
-                    {user.name?.charAt(0).toUpperCase() || "U"}
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#075BE8] text-sm font-semibold text-white">
+                    {displayName.charAt(0).toUpperCase()}
                   </div>
                 )}
 
-                <span className="max-w-[130px] truncate text-sm font-semibold text-[#172033]">
-                  {user.name || "My Account"}
+                <span className="max-w-[120px] truncate text-sm font-semibold text-gray-700">
+                  {displayName}
                 </span>
 
                 <ChevronDown
@@ -167,20 +209,27 @@ export default function Navbar() {
               </button>
 
               {isUserMenuOpen && (
-                <div className="absolute top-full right-0 mt-2 w-56 overflow-hidden rounded-xl border border-gray-100 bg-white py-2 shadow-lg">
+                <div className="absolute right-0 mt-3 w-64 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg">
                   <div className="border-b border-gray-100 px-4 py-3">
-                    <p className="truncate text-sm font-semibold text-[#172033]">
-                      {user.name || "User"}
+                    <p className="truncate text-sm font-semibold text-gray-800">
+                      {displayName}
                     </p>
-                    <p className="truncate text-xs text-gray-500">
-                      {user.email}
-                    </p>
+                    {user.email && (
+                      <p className="truncate text-xs text-gray-500">
+                        {user.email}
+                      </p>
+                    )}
+                    {user.role && (
+                      <p className="mt-1 text-xs font-medium capitalize text-[#075BE8]">
+                        {user.role.toLowerCase()}
+                      </p>
+                    )}
                   </div>
 
                   <Link
-                    href={getDashboardPath()}
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-[#172033] transition-colors hover:bg-gray-50 hover:text-[#075BE8]"
+                    href={dashboardPath}
+                    onClick={handleNavigation}
+                    className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 transition hover:bg-gray-50 hover:text-[#075BE8]"
                   >
                     <LayoutDashboard size={17} />
                     Dashboard
@@ -189,7 +238,7 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                    className="flex w-full items-center gap-3 border-t border-gray-100 px-4 py-3 text-left text-sm text-red-600 transition hover:bg-red-50"
                   >
                     <LogOut size={17} />
                     Logout
@@ -201,14 +250,14 @@ export default function Navbar() {
             <>
               <Link
                 href="/login"
-                className="text-[14px] font-semibold text-[#172033] transition-colors hover:text-[#075BE8]"
+                className="text-sm font-semibold text-gray-700 transition hover:text-[#075BE8]"
               >
                 Login
               </Link>
 
               <Link
                 href="/register"
-                className="rounded-lg bg-[#075BE8] px-6 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-[#064ac0]"
+                className="rounded-lg bg-[#075BE8] px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
               >
                 Get Started Free
               </Link>
@@ -216,13 +265,12 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Mobile Menu Toggle */}
+        {/* Mobile Menu Button */}
         <button
           type="button"
           onClick={() => setIsSidebarOpen(true)}
+          className="text-gray-700 lg:hidden"
           aria-label="Open navigation menu"
-          aria-expanded={isSidebarOpen}
-          className="rounded-md p-2 text-[#172033] transition-colors hover:bg-gray-100 lg:hidden"
         >
           <FaBars size={22} />
         </button>
@@ -230,371 +278,145 @@ export default function Navbar() {
 
       {/* Mobile Overlay */}
       {isSidebarOpen && (
-        <button
-          type="button"
-          onClick={closeSidebar}
-          aria-label="Close navigation menu"
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
-        />
-      )}
-
-      {/* Mobile Sidebar */}
-      <aside
-        id="mobile-navigation"
-        aria-label="Mobile navigation"
-        aria-hidden={!isSidebarOpen}
-        className={`fixed top-0 right-0 z-50 h-dvh w-[min(85%,360px)] overflow-y-auto bg-white shadow-2xl transition-transform duration-300 ease-in-out lg:hidden ${
-          isSidebarOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        {/* Mobile Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-5">
-          <Link
-            href="/"
-            onClick={closeSidebar}
-            tabIndex={isSidebarOpen ? 0 : -1}
-            className="flex items-center gap-2.5"
+        <div
+          className="fixed inset-0 z-50 bg-black/40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        >
+          {/* Mobile Sidebar */}
+          <aside
+            className="absolute top-0 right-0 flex h-full w-[min(85%,360px)] flex-col bg-white shadow-xl"
+            onClick={(event) => event.stopPropagation()}
           >
-            <Image
-              src={logo}
-              alt="ProjectFlow logo"
-              width={40}
-              height={40}
-              className="h-9 w-9 object-contain"
-            />
-
-            <div className="flex flex-col">
-              <span className="text-base leading-5 font-bold text-[#172033]">
-                ProjectFlow
-              </span>
-              <span className="mt-0.5 text-[10px] text-gray-500">
-                Project Management SaaS
-              </span>
-            </div>
-          </Link>
-
-          <button
-            type="button"
-            onClick={closeSidebar}
-            aria-label="Close navigation menu"
-            className="rounded-md p-2 text-[#172033] transition-colors hover:bg-gray-100"
-          >
-            <FaTimes size={21} />
-          </button>
-        </div>
-
-        {/* Mobile Links */}
-        <div className="flex flex-col px-5 py-4">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={closeSidebar}
-              tabIndex={isSidebarOpen ? 0 : -1}
-              aria-current={isActive(link.href) ? "page" : undefined}
-              className={`border-b border-gray-100 py-4 text-sm font-semibold transition-colors duration-200 ${
-                isActive(link.href)
-                  ? "text-[#075BE8]"
-                  : "text-[#172033] hover:text-[#075BE8]"
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
-
-          {/* Mobile User Menu */}
-          {user ? (
-            <div className="mt-5">
-              <div className="flex items-center gap-3 rounded-lg bg-gray-50 p-3">
-                {userImage ? (
-                  <Image
-                    src={userImage}
-                    alt={user.name || "User profile"}
-                    width={42}
-                    height={42}
-                    unoptimized
-                    className="h-[42px] w-[42px] rounded-full border border-gray-200 object-cover"
-                  />
-                ) : (
-                  <div className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[#075BE8] text-sm font-bold text-white">
-                    {user.name?.charAt(0).toUpperCase() || "U"}
-                  </div>
-                )}
-
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-[#172033]">
-                    {user.name || "User"}
-                  </p>
-                  <p className="truncate text-xs text-gray-500">
-                    {user.email}
-                  </p>
-                </div>
-              </div>
-
+            <div className="flex h-[76px] items-center justify-between border-b border-gray-100 px-5">
               <Link
-                href={getDashboardPath()}
-                onClick={closeSidebar}
-                tabIndex={isSidebarOpen ? 0 : -1}
-                className="mt-2 flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-[#172033] transition-colors hover:bg-gray-50 hover:text-[#075BE8]"
+                href="/"
+                onClick={handleNavigation}
+                className="flex items-center gap-2"
               >
-                <LayoutDashboard size={18} />
-                Dashboard
+                <Image
+                  src={logo}
+                  alt="ProjectFlow Logo"
+                  width={500}
+                  height={500}
+                  className="h-12 w-36 object-contain"
+                />
               </Link>
 
               <button
                 type="button"
-                onClick={handleLogout}
-                tabIndex={isSidebarOpen ? 0 : -1}
-                className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+                onClick={() => setIsSidebarOpen(false)}
+                className="text-gray-700"
+                aria-label="Close navigation menu"
               >
-                <LogOut size={18} />
-                Logout
+                <FaTimes size={22} />
               </button>
             </div>
-          ) : (
-            <>
-              {/* Mobile Login */}
-              <Link
-                href="/login"
-                onClick={closeSidebar}
-                tabIndex={isSidebarOpen ? 0 : -1}
-                className="mt-5 rounded-lg border border-gray-200 px-5 py-3 text-center text-sm font-semibold text-[#172033] transition-colors hover:bg-gray-50"
-              >
-                Login
-              </Link>
 
-              {/* Mobile CTA */}
-              <Link
-                href="/register"
-                onClick={closeSidebar}
-                tabIndex={isSidebarOpen ? 0 : -1}
-                className="mt-3 rounded-lg bg-[#075BE8] px-5 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-[#064ac0]"
-              >
-                Get Started Free
-              </Link>
-            </>
-          )}
+            <div className="border-b border-gray-100 px-5 py-4">
+              <p className="text-base font-bold text-gray-900">
+                ProjectFlow
+              </p>
+              <p className="text-xs text-gray-500">
+                Project Management SaaS
+              </p>
+            </div>
+
+            <div className="flex flex-1 flex-col gap-1 overflow-y-auto px-5 py-5">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={handleNavigation}
+                  className={`rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
+                    pathname === link.href
+                      ? "bg-blue-50 text-[#075BE8]"
+                      : "text-gray-700 hover:bg-gray-50 hover:text-[#075BE8]"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+
+            <div className="border-t border-gray-100 p-5">
+              {isAuthenticated && user ? (
+                <div>
+                  <div className="mb-4 flex items-center gap-3">
+                    {userImage ? (
+                      <Image
+                        src={userImage}
+                        alt={displayName}
+                        width={44}
+                        height={44}
+                        unoptimized
+                        className="h-11 w-11 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#075BE8] font-semibold text-white">
+                        {displayName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-gray-800">
+                        {displayName}
+                      </p>
+                      {user.email && (
+                        <p className="truncate text-xs text-gray-500">
+                          {user.email}
+                        </p>
+                      )}
+                      {user.role && (
+                        <p className="mt-1 text-xs font-medium capitalize text-[#075BE8]">
+                          {user.role.toLowerCase()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <Link
+                    href={dashboardPath}
+                    onClick={handleNavigation}
+                    className="mb-2 flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                  >
+                    <LayoutDashboard size={17} />
+                    Dashboard
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100"
+                  >
+                    <LogOut size={17} />
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <Link
+                    href="/login"
+                    onClick={handleNavigation}
+                    className="rounded-lg border border-gray-200 px-4 py-3 text-center text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                  >
+                    Login
+                  </Link>
+
+                  <Link
+                    href="/register"
+                    onClick={handleNavigation}
+                    className="rounded-lg bg-[#075BE8] px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
+                  >
+                    Get Started Free
+                  </Link>
+                </div>
+              )}
+            </div>
+          </aside>
         </div>
-      </aside>
+      )}
     </nav>
   );
-}
+};
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// "use client";
-
-// import { useState } from "react";
-// import Link from "next/link";
-// import Image from "next/image";
-// import { usePathname } from "next/navigation";
-// import { FaBars, FaTimes } from "react-icons/fa";
-// // import logo from "@/assets/logo.png";
-// const logo = "/logo.png";
-
-// const navLinks = [
-// { href: "/", label: "Home" },
-// { href: "/about", label: "About" },
-// { href: "/features", label: "Features" },
-// { href: "/pricing", label: "Pricing" }, 
-// { href: "/contact", label: "Contact" },
-// ];
-
-// export default function Navbar() {
-// const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-// const pathname = usePathname();
-
-// const isActive = (href: string) => pathname === href;
-
-// const closeSidebar = () => setIsSidebarOpen(false);
-
-// return ( <nav className="fixed top-0 left-0 z-50 w-full border-b border-gray-100 bg-white"> <div className="mx-auto flex h-[76px] max-w-[1440px] items-center justify-between px-5 sm:px-8 lg:px-12">
-// {/* Logo */} <Link
-//        href="/"
-//      >     <Image
-//             src={logo}
-//             alt="ProjectFlow logo"
-//             width={500}
-//             height={500}
-//             priority
-//             className="h-20 w-60"
-//           />
-       
-
-
-//       {/* <div className="flex flex-col">
-//         <span className="text-[17px] leading-5 font-bold tracking-tight text-[#172033]">
-//           ProjectFlow
-//         </span>
-//         <span className="mt-0.5 text-[10px] leading-3 text-gray-500">
-//           Project Management SaaS
-//         </span>
-//       </div> */}
-//     </Link>
-
-//     {/* Desktop Navigation */}
-//     <div className="hidden items-center gap-7 lg:flex xl:gap-10">
-//       {navLinks.map((link) => (
-//         <Link
-//           key={link.href}
-//           href={link.href}
-//           aria-current={isActive(link.href) ? "page" : undefined}
-//           className={`text-[14px] font-semibold transition-colors duration-200 ${
-//             isActive(link.href)
-//               ? "text-[#075BE8]"
-//               : "text-[#172033] hover:text-[#075BE8]"
-//           }`}
-//         >
-//           {link.label}
-//         </Link>
-//       ))}
-//     </div>
-
-//     {/* Desktop Buttons */}
-//     <div className="hidden shrink-0 items-center gap-7 lg:flex">
-//       <Link
-//         href="/login"
-//         className="text-[14px] font-semibold text-[#172033] transition-colors hover:text-[#075BE8]"
-//       >
-//         Login
-//       </Link>
-
-//       <Link
-//         href="/register"
-//         className="rounded-lg bg-[#075BE8] px-6 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-[#064ac0]"
-//       >
-//         Get Started Free
-//       </Link>
-//     </div>
-
-//     {/* Mobile Menu Toggle */}
-//     <button
-//       type="button"
-//       onClick={() => setIsSidebarOpen(true)}
-//       aria-label="Open navigation menu"
-//       aria-expanded={isSidebarOpen}
-//       className="rounded-md p-2 text-[#172033] transition-colors hover:bg-gray-100 lg:hidden"
-//     >
-//       <FaBars size={22} />
-//     </button>
-//   </div>
-
-//   {/* Mobile Overlay */}
-//   {isSidebarOpen && (
-//     <button
-//       type="button"
-//       onClick={closeSidebar}
-//       aria-label="Close navigation menu"
-//       className="fixed inset-0 z-40 bg-black/40 lg:hidden"
-//     />
-//   )}
-
-//   {/* Mobile Sidebar */}
-//   <aside
-//     id="mobile-navigation"
-//     aria-label="Mobile navigation"
-//     aria-hidden={!isSidebarOpen}
-//     className={`fixed top-0 right-0 z-50 h-dvh w-[min(85%,360px)] overflow-y-auto bg-white shadow-2xl transition-transform duration-300 ease-in-out lg:hidden ${
-//       isSidebarOpen ? "translate-x-0" : "translate-x-full"
-//     }`}
-//   >
-//     {/* Mobile Header */}
-//     <div className="flex items-center justify-between border-b border-gray-100 px-5 py-5">
-//       <Link
-//         href="/"
-//         onClick={closeSidebar}
-//         tabIndex={isSidebarOpen ? 0 : -1}
-//         className="flex items-center gap-2.5"
-//       >
-//         <Image
-//           src={logo}
-//           alt="ProjectFlow logo"
-//           width={40}
-//           height={40}
-//           className="h-9 w-9 object-contain"
-//         />
-
-//         <div className="flex flex-col">
-//           <span className="text-base leading-5 font-bold text-[#172033]">
-//             ProjectFlow
-//           </span>
-//           <span className="mt-0.5 text-[10px] text-gray-500">
-//             Project Management SaaS
-//           </span>
-//         </div>
-//       </Link>
-
-//       <button
-//         type="button"
-//         onClick={closeSidebar}
-//         aria-label="Close navigation menu"
-//         className="rounded-md p-2 text-[#172033] transition-colors hover:bg-gray-100"
-//       >
-//         <FaTimes size={21} />
-//       </button>
-//     </div>
-
-//     {/* Mobile Links */}
-//     <div className="flex flex-col px-5 py-4">
-//       {navLinks.map((link) => (
-//         <Link
-//           key={link.href}
-//           href={link.href}
-//           onClick={closeSidebar}
-//           tabIndex={isSidebarOpen ? 0 : -1}
-//           aria-current={isActive(link.href) ? "page" : undefined}
-//           className={`border-b border-gray-100 py-4 text-sm font-semibold transition-colors duration-200 ${
-//             isActive(link.href)
-//               ? "text-[#075BE8]"
-//               : "text-[#172033] hover:text-[#075BE8]"
-//           }`}
-//         >
-//           {link.label}
-//         </Link>
-//       ))}
-
-//       {/* Mobile Login */}
-//       <Link
-//         href="/login"
-//         onClick={closeSidebar}
-//         tabIndex={isSidebarOpen ? 0 : -1}
-//         className="mt-5 rounded-lg border border-gray-200 px-5 py-3 text-center text-sm font-semibold text-[#172033] transition-colors hover:bg-gray-50"
-//       >
-//         Login
-//       </Link>
-
-//       {/* Mobile CTA */}
-//       <Link
-//         href="/register"
-//         onClick={closeSidebar}
-//         tabIndex={isSidebarOpen ? 0 : -1}
-//         className="mt-3 rounded-lg bg-[#075BE8] px-5 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-[#064ac0]"
-//       >
-//         Get Started Free
-//       </Link>
-//     </div>
-//   </aside>
-// </nav>
-// );
-// }
+export default Navbar;
