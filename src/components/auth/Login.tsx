@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -7,6 +6,9 @@ import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { jwtDecode } from "jwt-decode";
+import Cookies from "js-cookie";
+
 import {
   Eye,
   EyeOff,
@@ -17,8 +19,10 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { useLoginMutation } from "@/redux/api/authApi";
 
+import { useLoginMutation } from "@/redux/api/authApi";
+import { useAppDispatch } from "@/redux/hooks";
+import { setUser } from "@/redux/features/authSlice";
 
 
 type LoginFormData = {
@@ -34,6 +38,16 @@ type AuthUser = {
   email?: string;
   role?: UserRole;
   [key: string]: unknown;
+};
+
+type JwtPayload = {
+  id?: string;
+  sub?: string;
+  name?: string;
+  email?: string;
+  role?: UserRole;
+  exp?: number;
+  iat?: number;
 };
 
 type AuthResponse = {
@@ -127,51 +141,78 @@ function getDashboardPath(role?: string) {
   }
 }
 
-function saveAuthData(result: AuthResponse) {
-  if (!result.success) {
+function saveAuthData(
+  result: AuthResponse,
+  dispatch: ReturnType<typeof useAppDispatch>,
+): AuthUser {
+  if (!result.success || !result.data) {
     throw new Error(result.message || "Login failed.");
   }
 
   const data = result.data;
 
   const accessToken =
-    data?.accessToken ?? data?.tokens?.accessToken ?? data?.token;
+    data.accessToken ?? data.tokens?.accessToken ?? data.token;
 
   const refreshToken =
-    data?.refreshToken ?? data?.tokens?.refreshToken;
-
-  const user: AuthUser | undefined =
-    data?.user ??
-    (data?.id && data?.email
-      ? {
-          id: data.id,
-          name: data.name,
-          email: data.email,
-          role: data.role,
-        }
-      : undefined);
+    data.refreshToken ?? data.tokens?.refreshToken;
 
   if (!accessToken) {
-    throw new Error(
-      "Login succeeded, but no access token was returned by the API.",
-    );
+    throw new Error("No access token was returned by the API.");
   }
 
-  localStorage.setItem("accessToken", accessToken);
+  let decoded: JwtPayload;
+
+  try {
+    decoded = jwtDecode<JwtPayload>(accessToken);
+  } catch {
+    throw new Error("The access token is invalid.");
+  }
+
+  if (decoded.exp && decoded.exp * 1000 <= Date.now()) {
+    throw new Error("The access token has expired. Please log in again.");
+  }
+
+  const user: AuthUser = {
+    ...decoded,
+    ...data.user,
+    id: data.user?.id ?? data.id ?? decoded.id ?? decoded.sub,
+    name: data.user?.name ?? data.name ?? decoded.name,
+    email: data.user?.email ?? data.email ?? decoded.email,
+    role: data.user?.role ?? data.role ?? decoded.role,
+  };
+
+  // Store tokens in cookies rather than localStorage.
+  Cookies.set("accessToken", accessToken, {
+    expires: 1,
+    sameSite: "lax",
+    secure: window.location.protocol === "https:",
+  });
 
   if (refreshToken) {
-    localStorage.setItem("refreshToken", refreshToken);
+    Cookies.set("refreshToken", refreshToken, {
+      expires: 7,
+      sameSite: "lax",
+      secure: window.location.protocol === "https:",
+    });
+  } else {
+    Cookies.remove("refreshToken");
   }
 
-  if (user) {
-    localStorage.setItem("user", JSON.stringify(user));
-  }
+
+       // Store token in Redux
+        dispatch(
+          setUser({
+            token: accessToken,
+          })
+        );
 
   return user;
 }
 
 export default function LoginPage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
 
   const [showPassword, setShowPassword] = useState(false);
   const [loadingRole, setLoadingRole] = useState<UserRole | null>(null);
@@ -193,14 +234,14 @@ export default function LoginPage() {
 
   const finishLogin = useCallback(
     (result: AuthResponse) => {
-      const user = saveAuthData(result);
+      const user = saveAuthData(result, dispatch);
 
       toast.success(result.message || "Login successful!");
 
-      router.replace(getDashboardPath(user?.role));
+      router.replace(getDashboardPath(user.role));
       router.refresh();
     },
-    [router],
+    [dispatch, router],
   );
 
   const loginWithCredentials = async (
@@ -210,11 +251,7 @@ export default function LoginPage() {
     setLoadingRole(role ?? null);
 
     try {
-      console.log("Login Form Data:", credentials);
-
-      // Use RTK Query for email/password and demo login.
       const result = (await login(credentials).unwrap()) as AuthResponse;
-
       finishLogin(result);
     } catch (error: unknown) {
       let message = "Invalid email or password.";
@@ -243,7 +280,6 @@ export default function LoginPage() {
     await loginWithCredentials(data);
   };
 
-  // Google authentication follows your provided Google login component.
   const handleGoogleCredential = useCallback(
     async (credential: string) => {
       if (!API_URL) {
@@ -265,8 +301,6 @@ export default function LoginPage() {
         });
 
         const result = (await response.json()) as AuthResponse;
-
-        console.log("Google Login Response:", result);
 
         if (!response.ok || !result.success) {
           throw new Error(result.message || "Google login failed.");
@@ -431,11 +465,7 @@ export default function LoginPage() {
                   onClick={() => setShowPassword((previous) => !previous)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
                 >
-                  {showPassword ? (
-                    <EyeOff size={18} />
-                  ) : (
-                    <Eye size={18} />
-                  )}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
 
@@ -497,9 +527,7 @@ export default function LoginPage() {
               <h2 className="text-sm font-semibold text-slate-900">
                 Try a demo account
               </h2>
-              <span className="text-xs text-slate-500">
-                One-click login
-              </span>
+              <span className="text-xs text-slate-500">One-click login</span>
             </div>
 
             <div className="grid grid-cols-3 gap-2">
@@ -569,3 +597,4 @@ export default function LoginPage() {
     </main>
   );
 }
+

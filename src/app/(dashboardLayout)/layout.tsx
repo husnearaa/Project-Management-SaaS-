@@ -26,7 +26,7 @@ export default function DashboardLayout({
       ? decodedToken.role
       : typeof decodedToken?.activeRole === "string"
         ? decodedToken.activeRole
-        : "CUSTOMER";
+        : "MEMBER";
 
   return (
     <SidebarProvider>
