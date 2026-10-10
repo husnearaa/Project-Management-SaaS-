@@ -81,13 +81,13 @@ const data = {
         icon: LayoutDashboard,
       },
       {
-        title: "Booking Service",
-        url: "/member/booking-service",
+        title: "My Tasks",
+        url: "/member/my-tasks",
         icon: MdOutlineEventNote,
       },
       {
-        title: "Payments and Reviews",
-        url: "/member/payments-reviews",
+        title: "Payments",
+        url: "/member/payment",
         icon: MdOutlineEventNote,
       },
     ],

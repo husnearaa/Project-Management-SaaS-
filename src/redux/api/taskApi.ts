@@ -19,6 +19,17 @@ export const taskApi = baseApi.injectEndpoints({
       providesTags: ["Task"],
     }),
 
+   
+
+       getMyTask: builder.query({
+      query: (params) => ({
+        url: "/tasks/my-tasks",
+        method: "GET",
+        params: { ...params },
+      }),
+      providesTags: ["Task"],
+    }),
+
     createTask: builder.mutation({
       query: (data) => ({
         url: "/tasks",
@@ -75,4 +86,5 @@ useUpdateTaskMutation,
 useDeleteTaskMutation,
 useAssignTaskMutation,
 useChangeTaskStatusMutation,
+useGetMyTaskQuery,
 } = taskApi;
