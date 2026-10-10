@@ -61,8 +61,8 @@ const data = {
         icon: Wrench,
       },
       {
-        title: "Availability",
-        url: "/manager/availability",
+        title: "Task Management",
+        url: "/manager/tasks",
         icon: CalendarDays,
       },
       {
