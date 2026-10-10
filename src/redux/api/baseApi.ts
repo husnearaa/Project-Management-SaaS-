@@ -201,7 +201,8 @@ export const baseApi = createApi({
   baseQuery: baseQueryWithAuth,
   tagTypes: [
    "Admin",
-    "Payment",  
+   "Manager",
+   "Payment",  
   ],
   endpoints: () => ({}),
 });
